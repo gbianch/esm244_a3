@@ -1,0 +1,82 @@
+---
+title: "task 1"
+author: "Grace Bianchi"
+date: "2023-03-01"
+output: html_document
+---
+
+
+```{r setup, include=TRUE, warning = FALSE, message = FALSE, echo = TRUE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+
+library(here)
+library(tidyverse)
+library(broom)
+
+# For Part 1 (PCA)
+library(ggfortify) # For PCA biplot
+library(patchwork)
+```
+
+Principal Component Analysis
+
+Intro Summary (3-4 sentences)
+
+What are we exploring: 
+
+The dataset used in this code includes environmental variables for 243 countries, in which most of the data was "derived by calculating the mean for each country at a reduction scale of about 10km.” This data was compiled and provided by @zander_venter on Kaggle, where all data was acquired through Google Earth Engine (https://earthengine.google.com/), where publicly available remote sensing datasets have been uploaded.
+
+
+
+**Citation:**  
+
+
+
+```{r wrangle data}
+env_vars_data <- read_csv(here("world_env_vars.csv")) %>% 
+  janitor::clean_names() %>% 
+  # summarize(across(everything(), ~sum(is.na(.))))  number of NAs in each col
+  select(!wind) %>%  # removing quarterly data since there are many 
+  drop_na()
+
+env_vars_pca <- env_vars_data %>% 
+  select(where(is.numeric)) %>% # select only numeric columns for PCA 
+  scale() %>% 
+  prcomp() 
+
+pca_sum <- summary(env_vars_pca)  
+
+
+```
+
+
+### Principle Component Analysis
+
+Principle component 1 captures 41% of variance, followed by principle component 2 which captures 24% variance, and 95% of the variance is captured by the first 10 principle components.
+
+```{r}
+# See the loadings (weighting for each principal component)
+env_vars_pca$rotation
+```
+
+#### PCA BiPlot
+
+```{r}
+
+## PCA Bi Plot
+autoplot(env_vars_pca,
+         data = env_vars_data,
+         loadings = TRUE,
+         color = "country",
+         loadings.label = TRUE,
+         loadings.color= "black",
+         loadings.label.vjust = -0.5) +
+  theme_minimal()
+```
+
+**Figure Caption.** 
+
+### Summary
+
+Major Take aways
+

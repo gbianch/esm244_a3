@@ -1,82 +1,94 @@
 ---
-title: "task 1"
+title: "Task 1: Principal Component Analysis"
 author: "Grace Bianchi"
 date: "2023-03-01"
-output: html_document
+output: 
+  html_document:
+    code_folding: hide
 ---
 
 
 ```{r setup, include=TRUE, warning = FALSE, message = FALSE, echo = TRUE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
-library(here)
 library(tidyverse)
-library(broom)
-
-# For Part 1 (PCA)
 library(ggfortify) # For PCA biplot
-library(patchwork)
+library(ggrepel)
 ```
 
-Principal Component Analysis
 
-Intro Summary (3-4 sentences)
+**Introduction**
+This code wrangles and explores multivariate country dataset using principal component analysis. The dataset includes environmental variables such as temperature, elevation, and canopy cover for 243 countries, in which most of the data was "derived by calculating the mean for each country at a reduction scale of about 10km.” This data was compiled and provided by @zander_venter on Kaggle, where all data was acquired through Google Earth Engine, where publicly available remote sensing datasets have been uploaded.
 
-What are we exploring: 
+**Source:** Google Earth Engine (https://earthengine.google.com/),
 
-The dataset used in this code includes environmental variables for 243 countries, in which most of the data was "derived by calculating the mean for each country at a reduction scale of about 10km.” This data was compiled and provided by @zander_venter on Kaggle, where all data was acquired through Google Earth Engine (https://earthengine.google.com/), where publicly available remote sensing datasets have been uploaded.
-
-
-
-**Citation:**  
-
-
+### Data Exploration
+Read in and wrangle the data. The quarterly data was removed since annual estimates are provided. The variable included in the principal component analysis are accessibility to cities, elevation, cropland cover, tree canopy cover, mean annual rain, mean annual temperature, annual temperature range, temperature seasonality, wind, and cloudiness. After removing NA values, 188 countries remain for further analysis.
 
 ```{r wrangle data}
-env_vars_data <- read_csv(here("world_env_vars.csv")) %>% 
-  janitor::clean_names() %>% 
+### read in the data
+env_vars_data <- read_csv("world_env_vars.csv") %>% 
+  janitor::clean_names()
+
+climate_subset <- env_vars_data %>% 
   # summarize(across(everything(), ~sum(is.na(.))))  number of NAs in each col
-  select(!wind) %>%  # removing quarterly data since there are many 
-  drop_na()
+  select(country, accessibility_to_cities, elevation, cropland_cover, tree_canopy_cover, rain_mean_annual, temp_mean_annual, temp_annual_range, temp_seasonality, wind, cloudiness) %>% 
+  drop_na() 
 
-env_vars_pca <- env_vars_data %>% 
-  select(where(is.numeric)) %>% # select only numeric columns for PCA 
-  scale() %>% 
-  prcomp() 
-
-pca_sum <- summary(env_vars_pca)  
-
-
+plt_lbl <- climate_subset %>% 
+  sample_n(50)
 ```
 
 
-### Principle Component Analysis
-
-Principle component 1 captures 41% of variance, followed by principle component 2 which captures 24% variance, and 95% of the variance is captured by the first 10 principle components.
+### Principal Component Analysis
 
 ```{r}
+env_pca <- climate_subset %>% 
+  select(where(is.numeric)) %>% # select only numeric columns for PCA 
+  prcomp(scale = TRUE) # pca
+
+#summary(env_pca) 
 # See the loadings (weighting for each principal component)
-env_vars_pca$rotation
+#env_pca$rotation
+
 ```
+
+Principal component 1 captures 41% of variance, followed by principal component 2 which captures 17% variance, and 95% of the variance is captured by the first six principal components.
 
 #### PCA BiPlot
 
 ```{r}
-
 ## PCA Bi Plot
-autoplot(env_vars_pca,
-         data = env_vars_data,
+
+autoplot(env_pca,
+         data = climate_subset,
          loadings = TRUE,
-         color = "country",
+         colour = "black",
+         alpha = 0.7,
          loadings.label = TRUE,
-         loadings.color= "black",
-         loadings.label.vjust = -0.5) +
-  theme_minimal()
+         loadings.colour= "dodgerblue",
+         loadings.label.colour = "dodgerblue",
+         loadings.label.vjust = -0.5,
+         #loadings.label.hjust = 0.3,
+         loadings.label.size = 4,
+         loadings.label.fontface = "bold") +
+  theme_minimal() +
+  geom_text_repel( aes(label = country), size = 2, alpha = 0.7, max.overlaps = 2, min.segment.length = 0.3) +
+  theme(legend.position = "none") 
+
+
 ```
 
-**Figure Caption.** 
+**Figure 1.** Biplot with principal component analysis results. Each point represents a country (n=188) and points closer to each represent more similar countries. The length of each line indicates the variance in the principal component direction. 
+
 
 ### Summary
 
-Major Take aways
+- Elevation had smallest variance between both principal components
+- temperature seasonality and annual temperature range are negatively correlated and have a large variance driven by PC1
+- Cloudiness, treen canopy cover, and mean annual rain are correlated
+- French Southern and Antarctic Lands is an outlier
+- There is no observable clusters
+
+
 

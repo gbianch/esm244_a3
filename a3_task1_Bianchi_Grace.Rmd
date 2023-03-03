@@ -20,9 +20,10 @@ library(ggrepel)
 **Introduction**
 This code wrangles and explores multivariate country dataset using principal component analysis. The dataset includes environmental variables such as temperature, elevation, and canopy cover for 243 countries, in which most of the data was "derived by calculating the mean for each country at a reduction scale of about 10km.” This data was compiled and provided by @zander_venter on Kaggle, where all data was acquired through Google Earth Engine, where publicly available remote sensing datasets have been uploaded.
 
-**Source:** Google Earth Engine (https://earthengine.google.com/),
+**Source:** Google Earth Engine (https://earthengine.google.com/)
 
 ### Data Exploration
+
 Read in and wrangle the data. The quarterly data was removed since annual estimates are provided. The variable included in the principal component analysis are accessibility to cities, elevation, cropland cover, tree canopy cover, mean annual rain, mean annual temperature, annual temperature range, temperature seasonality, wind, and cloudiness. After removing NA values, 188 countries remain for further analysis.
 
 ```{r wrangle data}
@@ -57,7 +58,7 @@ Principal component 1 captures 41% of variance, followed by principal component 
 
 #### PCA BiPlot
 
-```{r}
+```{r fig.align='center', fig.height=6, fig.width=8}
 ## PCA Bi Plot
 
 autoplot(env_pca,
@@ -68,8 +69,9 @@ autoplot(env_pca,
          loadings.label = TRUE,
          loadings.colour= "dodgerblue",
          loadings.label.colour = "dodgerblue",
-         loadings.label.vjust = -0.5,
-         #loadings.label.hjust = 0.3,
+         #loadings.label.repel = T,
+        loadings.label.vjust = 1,
+        loadings.label.hjust = 0.5,
          loadings.label.size = 4,
          loadings.label.fontface = "bold") +
   theme_minimal() +
@@ -86,7 +88,7 @@ autoplot(env_pca,
 
 - Elevation had smallest variance between both principal components
 - temperature seasonality and annual temperature range are negatively correlated and have a large variance driven by PC1
-- Cloudiness, treen canopy cover, and mean annual rain are correlated
+- Cloudiness, tree canopy cover, and mean annual rain are correlated
 - French Southern and Antarctic Lands is an outlier
 - There is no observable clusters
 

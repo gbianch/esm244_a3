@@ -13,112 +13,68 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 library(here)
 library(tidyverse)
-library(kableExtra)
+library(ggdendro)
 
 ```
 
 ### Introduction
 
-
-A useful descriptive introductory summary (3 - 4 sentences) that helps the audience understand the data (include a citation as necessary) and what you’ll be exploring
-
-This data includes stream chemistry in the Santa Barbara Coastal drainage area since 2000. Samples from the watersheds includes measurements of dissolved nitrogen (nitrate, ammonium, total dissolved nitrogen); soluble reactive phosphorus (SRP); particulate organic carbon, nitrogen and phosphorus; total suspended sediments; and conductivity.
+This code explores Santa Barbara stream data using hierarchical clustering by complete linkage. A dendrogram is created to shower the clustering for the stream chemistry by site. This data includes stream chemistry in the Santa Barbara Coastal drainage area since 2000. Samples from the watersheds includes measurements of dissolved nitrogen (nitrate, ammonium, total dissolved nitrogen); soluble reactive phosphorus (SRP); particulate organic carbon, nitrogen and phosphorus; total suspended sediments; and conductivity.
 
 
 **Citation:** Santa Barbara Coastal LTER and J. Melack. 2019. SBC LTER: Land: Stream chemistry in the Santa Barbara Coastal drainage area, ongoing since 2000 ver 16. Environmental Data Initiative. https://doi.org/10.6073/pasta/67a558a24ceed9a0a5bf5e46ab841174. 
 
 
 ```{r data wrangling}
-stream_data <- read_csv(here("sbc_lter_registered_stream_chemistry.csv")) %>% 
+stream_data <- read_csv(here("sbc_lter_registered_stream_chemistry.csv")) %>%
   janitor::clean_names() %>% 
   mutate(across(where(is.numeric), ~na_if(., -999.0)))  # convert -999 to NA
 
-
 stream_nas_by_variable <- stream_data %>% 
   summarize(across(everything(), ~sum(is.na(.))))
-
-stream_nas_by_site <- stream_data %>% 
-  group_by(site_code) %>% 
-  summarize(across(everything(), ~sum(is.na(.))))
-
 ```
 
-
-After exploring the stream data, it appears the total particulate carbon (TPC), total particulate nitrogen, and total particulate phosphorus had the greatest number of missing values, 15,521, 16,521, and 17,046, respectively. The absences of these values were mostly consistent across each site and more than 50% of the values in each variable were NA, thus these three variables were removed from further analysis. In addition, the total suspended solids (TSS) data was removed, as more 50% of the values were NAs. Specific conductivity was removed because it was not useful for this analysis.
-
-```{r}
-
-stream_tidy <- stream_data %>% 
-  select(!c("tpp_u_m", "tpc_u_m", "tpn_u_m", "tss_mgper_liter", "spec_cond_u_spercm")) %>% 
-  pivot_longer(cols = where(is.numeric),
-               names_to = "variable",
-               values_to = "value")
-
-```
-
-
-
- 
- Exploratory Visualizations
- 
-```{r}
-ggplot(data = stream_tidy, aes(x = timestamp_local, y = value)) +
-  geom_line(aes(color = variable)) +
-  facet_wrap(~site_code)
-
-  
-ggplot(data = stream_tidy) +
-  geom_boxplot(aes(x = variable, y = value))
-```
-
-
-To perform hierarchical clustering by site, you’ll want to make a data frame that has a single summary row per site (e.g. based on means from all observations at that site), then calculate the Euclidean distance before performing complete linkage agglomerative hierarchical clustering. 
+After exploring the stream data, it appears the total particulate carbon (TPC), total particulate nitrogen, and total particulate phosphorus had the greatest number of missing values, 15,521, 16,521, and 17,046, respectively. The absences of these values were mostly consistent across each site and more than 50% of the values in each variable were NA, thus these three variables were removed from further analysis. In addition, the total suspended solids (TSS) data was removed, as more 50% of the values were NA. 
 
 ```{r}
-
-stream_summary <- stream_tidy %>% 
-  group_by(site_code, variable) %>% 
-  summarize(mean_nh4 = mean(nh4_u_m, na.rm = TRUE),
-            mean_no3 = mean(no3_u_m, na.rm = TRUE),
-            mean_po4 = mean(po4_u_m, na.rm = TRUE),
-            mean_tdn = mean(tdn_u_m, na.rm = TRUE),
-            mean_tdp = mean(tdp_u_m, na.rm = TRUE))
-  
-  
-```
-
-
-```{r}
-# single summary per row per site 
-stream_sum <- stream_data %>% 
+# calculate mean concentrations for each site
+stream_avg <- stream_data %>% 
   group_by(site_code) %>% 
   summarize(mean_nh4 = mean(nh4_u_m, na.rm = TRUE),
             mean_no3 = mean(no3_u_m, na.rm = TRUE),
             mean_po4 = mean(po4_u_m, na.rm = TRUE),
             mean_tdn = mean(tdn_u_m, na.rm = TRUE),
-            mean_tdp = mean(tdp_u_m, na.rm = TRUE))
-
-kable(stream_sum)
+            mean_tdp = mean(tdp_u_m, na.rm = TRUE),
+            mean_spec = mean(spec_cond_u_spercm, na.rm = TRUE)) 
 ```
 
+### Hierarchicial Clustering
 
-
-
-
-
+The euclidean distance is calculated before performing the complete linkage agglomerative hierarchical clustering.
+This is a bottom-up approach in which all observations start as their own cluster and then are grouped based on similarity.
 
 ```{r}
-streams_dist <- dist(streams_scale, method = "euclidean")
+## scale data
+streams_scaled <- stream_avg %>% 
+  select(where(is.numeric)) %>% 
+  scale()
 
-streams_hc_complete <- hclust(streams_dist, method = "complete")
+rownames(streams_scaled) <- stream_avg$site_code 
 
-plot(streams_hc_complete, ces = 0.6, hang = -1)
+streams_dist <- dist(streams_scaled, method = 'euclidean') # euclidean distance
+
+# hierarchical clustering complete linkage
+streams_hc_complete <- hclust(streams_dist, method = 'complete')
+
+ggdendrogram(streams_hc_complete) +
+  theme_minimal() +
+  labs(x = 'Stream Site', y = 'Height')
 ```
 
+**Figure 1.** Hierarchical clustering by complete linkage of Santa Barbara stream chemistry. The clusters/grouping indicate how closely each stream site is to one another.The height represents the distance between clusters.
 
-All of your organized and well-annotated code (with warnings/messages suppressed) you wrote to wrangle data then create the dendrogram, and to create a professional looking dendrogram that appears (with a caption) in your knitted HTML.  
+**Summary**
 
-
-A brief summary (nicely formatted and professionally written bulletpoints are fine) highlighting some major takeaways from your hierarchical clustering analysis that can be gleaned from the dendrogram(s).
-
-
+- MC00 & SP02 and HO00 & RS02 are the most similar to each other
+- There are two distinct clusters at a height around 3
+- DV01 and BC02 are the most different from the other stream sites
